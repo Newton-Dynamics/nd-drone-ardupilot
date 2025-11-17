@@ -10,10 +10,6 @@ local MAV_SEVERITY_EMERGENCY = 0
 --- because flags
 local IS_INITIALISED = false
 
--- duplicate the #defines from AP_Motors
-local AP_MOTORS_MATRIX_YAW_FACTOR_CW = -1
-local AP_MOTORS_MATRIX_YAW_FACTOR_CCW = 1
-
 -- MOTOR MATRIX NUMBERING and COORDINATES
 -- 515 beam to beam
 -- 70mm backwards
@@ -112,6 +108,10 @@ local AP_MOTORS_MATRIX_YAW_FACTOR_CCW = 1
 -- add_motor_raw(AP_MOTORS_MOT_7, 0.442, 0.442, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 7);
 -- add_motor_raw(AP_MOTORS_MOT_8, -0.442, -0.265, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 8);
 
+-- duplicate the #defines from AP_Motors
+local AP_MOTORS_MATRIX_YAW_FACTOR_CW = -1
+local AP_MOTORS_MATRIX_YAW_FACTOR_CCW = 1
+-- Roll and Pitch factors
 local AP_MOTORS_MOT_01 = 0
 local NEWTON_MOT_01_X = -0.44
 local NEWTON_MOT_01_Y = 0.819
