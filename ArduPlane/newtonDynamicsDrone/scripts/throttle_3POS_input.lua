@@ -60,10 +60,18 @@ end
 -- CH10 -> preset PWM and label
 local function select_target_pwm()
     local a = rcpwm(AMP_CH)
-    if a <= AMP_LOW_MAX_US then return THR_LOW_PWM, "LOW"
-    elseif a >= AMP_HIGH_MIN_US then return THR_HIGH_PWM, "HIGH"
-    elseif a >= AMP_MID_MIN_US and a <= AMP_MID_MAX_US then return THR_MID_PWM, "MID"
-    else return THR_MID_PWM, "MID" end
+    if a <= AMP_LOW_MAX_US then 
+        return THR_LOW_PWM, "LOW"
+
+    elseif a >= AMP_HIGH_MIN_US then 
+        return THR_HIGH_PWM, "HIGH"
+
+    elseif a >= AMP_MID_MIN_US and a <= AMP_MID_MAX_US then 
+        return THR_MID_PWM, "MID"
+
+    else return THR_MID_PWM, "MID" 
+        
+    end
 end
 
 -- Apply RC override to throttle input
