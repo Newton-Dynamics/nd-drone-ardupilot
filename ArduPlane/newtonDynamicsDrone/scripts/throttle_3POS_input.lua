@@ -26,9 +26,9 @@ local AMP_MID_MAX_US       = 1600
 local AMP_HIGH_MIN_US      = 1700      -- ≥ HIGH
 
 -- Throttle presets (raw PWM). Adjust here.
-local THR_LOW_PWM          = 1500      -- "LOW"
-local THR_MID_PWM          = 1750      -- "MID"
-local THR_HIGH_PWM         = 2000      -- "HIGH"
+local THR_LOW_PWM          = 1300      -- "LOW"
+local THR_MID_PWM          = 1500      -- "MID"
+local THR_HIGH_PWM         = 1700      -- "HIGH"
 
 -- Optional extra clamp of commanded PWM (leave nil to use RCx_MIN/MAX)
 local CMD_MIN_PWM          = nil       -- e.g., 1200
