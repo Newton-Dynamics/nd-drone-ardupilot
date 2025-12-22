@@ -146,7 +146,7 @@ def main():
 
     with output.open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["param", "file1_value", "file2_value", "same_name", "unknown_parameter", "same_value"])
+        writer.writerow(["param", file1.name, file2.name, "same_name", "unknown_parameter", "same_value"])
         for name in all_params:
             in1, in2 = name in d1, name in d2
             same_name = in1 and in2
