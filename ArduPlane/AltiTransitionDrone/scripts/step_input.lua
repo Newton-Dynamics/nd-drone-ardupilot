@@ -1,9 +1,9 @@
--- 3-2-1-1 RC input override for QuadPlane (QSTABILIZE/QHOVER only)
--- CH9 HIGH  -> run one 3211 sequence on selected axis (from CH10 3-pos)
+-- 1-step RC input override for QuadPlane (QSTABILIZE/QHOVER only)
+-- CH9 HIGH  -> run one 1-step sequence on selected axis (from CH10 3-pos)
 -- CH9 LOW   -> abort + clear overrides immediately
 -- CH10 3-pos: LOW=ROLL, MID=PITCH, HIGH=YAW
 
-local SCRIPT_NAME = "3211_rc_override_qmodes"
+local SCRIPT_NAME = "step_input"
 
 -- ========= User configuration =========
 -- Activation switch (2-pos)
@@ -23,10 +23,9 @@ local ROLL_IN        = 1
 local PITCH_IN       = 2
 local YAW_IN         = 4
 
--- 3211 timing/amplitude
--- Standard 3-2-1-1: +A for 3T, -A for 2T, +A for 1T, -A for 1T
-local T_STEP_MS      = 600           -- base step duration T
-local AMP_US         = 100            -- amplitude in microseconds (start small: 30..80)
+-- step input timing/amplitude  (kept identical; only maneuver shape changed below)
+local T_STEP_MS      = 900           -- base step duration T
+local AMP_US         = 350           -- amplitude in microseconds (start small: 30..80)
 local FADE_IN_MS     = 300           -- fade-in time at start of sequence
 
 -- Update period
@@ -103,24 +102,19 @@ local function set_rc_override(ch_in, pwm)
     end
 end
 
--- 3211 segment definition: {sign, duration_ms}
+-- 1-step segment definition: {sign, duration_ms}
+-- Only change vs 3211: hold +A for 1T, then stop.
 local function seg_for_time(t_ms)
     local T = T_STEP_MS
-    if t_ms < 3*T then
+    if t_ms < 1*T then
         return  1
-    elseif t_ms < 5*T then
-        return -1
-    elseif t_ms < 6*T then
-        return  1
-    elseif t_ms < 7*T then
-        return -1
     else
         return  0
     end
 end
 
 local function total_duration_ms()
-    return 7 * T_STEP_MS
+    return 1 * T_STEP_MS
 end
 
 -- State
@@ -170,7 +164,7 @@ function update()
 
         t0_ms = millis()
         running = true
-        gcs_msg(string.format("START 3211 on %s (RC%d baseline=%d)", axis_lbl, axis_ch, baseline_pwm))
+        gcs_msg(string.format("START step input on %s (RC%d baseline=%d)", axis_lbl, axis_ch, baseline_pwm))
         last_mode = mode
         return update, UPDATE_MS
     end
@@ -220,5 +214,5 @@ function update()
     return update, 80
 end
 
-gcs_msg("Initialized (CH9=run, CH10=axis; QSTABILIZE/QHOVER only)")
+gcs_msg("Initialized (CH9=run, CH10=axis;QSTAB/QHOVER only)")
 return update()
