@@ -16,7 +16,7 @@ local M7 = 6
 local M8 = 7
 AP_MOTORS_MAX_NUM_MOTORS = 8
 
--- roll, pitch, yaw, testing_order
+-- roll, pitch, yaw, testing_order [Blender model motor matrix]
 --[[ 
 MotorsMatrix:add_motor_raw(M1, -0.441,  0.817,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  1)
 MotorsMatrix:add_motor_raw(M2,  0.441, -1.000,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  5)
