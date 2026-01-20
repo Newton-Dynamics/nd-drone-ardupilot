@@ -18,6 +18,7 @@ local M8 = 7
 AP_MOTORS_MAX_NUM_MOTORS = 8
 
 -- roll, pitch, yaw, testing_order
+
 MotorsMatrix:add_motor_raw(M1, -0.441,  0.817,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  1)
 MotorsMatrix:add_motor_raw(M2,  0.441, -1.000,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  5)
 MotorsMatrix:add_motor_raw(M3, -0.441,  0.398,  AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 2)
@@ -27,7 +28,20 @@ MotorsMatrix:add_motor_raw(M6,  0.441, -0.215,  AP_MOTORS_MATRIX_YAW_FACTOR_CCW,
 MotorsMatrix:add_motor_raw(M7,  0.441,  0.398,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  7)
 MotorsMatrix:add_motor_raw(M8, -0.441, -0.215,  AP_MOTORS_MATRIX_YAW_FACTOR_CW,  3)
 
+--[[ 
+-- disrupted case: out of order additions
+MotorsMatrix:add_motor_raw(M1, -0.48, 0.85, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 1);
+MotorsMatrix:add_motor_raw(M2, 0.441, -1, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 2);
+MotorsMatrix:add_motor_raw(M3, -0.441, 0.44, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 3);
+MotorsMatrix:add_motor_raw(M4, -0.441, -0.97, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 4);
+MotorsMatrix:add_motor_raw(M5, 0.441, 0.84, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 5);
+MotorsMatrix:add_motor_raw(M6, 0.441, -0.22, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 6);
+MotorsMatrix:add_motor_raw(M7, 0.441, 0.44, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 7);
+MotorsMatrix:add_motor_raw(M8, -0.441, -0.215, AP_MOTORS_MATRIX_YAW_FACTOR_CW, 8);
+--]]
+
 -- initialise the mixer with 8 motors
 assert(MotorsMatrix:init(8), "Failed to init the full MotorsMatrix")
 
 gcs:send_text(MAV_SEVERITY_INFO, "LUA: MotorMatrix loaded")
+
