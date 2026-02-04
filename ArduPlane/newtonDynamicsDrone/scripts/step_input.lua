@@ -1,4 +1,4 @@
--- 1-step RC input override for QuadPlane (QSTABILIZE/QHOVER only)
+-- 1-step RC input override for QuadPlane (QHOVER only)
 -- CH9 HIGH  -> run one 1-step on selected axis (CH10 3-pos)
 -- CH9 LOW   -> abort + clear overrides (debounced)
 -- CH10 3-pos: LOW=ROLL, MID=PITCH, HIGH=YAW
