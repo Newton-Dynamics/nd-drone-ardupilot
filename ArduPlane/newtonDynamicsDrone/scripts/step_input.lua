@@ -22,7 +22,7 @@ local PITCH_IN       = 2
 local YAW_IN         = 4
 
 -- Step definition
-local T_STEP_MS      = 900
+local T_STEP_MS      = 4000
 local AMP_US         = 1000
 
 -- IMPORTANT: set to 0 for a true step (no ramps)
@@ -30,8 +30,8 @@ local FADE_IN_MS     = 0
 
 local UPDATE_MS      = 20
 
-local MODE_QSTABILIZE = 17
-local MODE_QHOVER     = 18
+--local MODE_QSTABILIZE = 17 and QHOVER = 18
+local ALLOWED_MODE     = 18
 
 -- Debounce / arm logic (prevents multiple pulses)
 local REARM_LOW_MS   = 300   -- must be LOW this long before a new start is allowed
@@ -58,11 +58,28 @@ local function rcpwm(ch)
 end
 
 local function in_allowed_mode(mode)
-    return (mode == MODE_QSTABILIZE) or (mode == MODE_QHOVER)
+    return (mode == ALLOWED_MODE)
 end
 
 local function clear_overrides()
-    if rc and rc.clear_overrides then rc:clear_overrides() end
+    -- Explicitly clear Lua RC_Channel overrides (robust across firmwares)
+    local chans = { ROLL_IN, PITCH_IN, YAW_IN }
+    for i = 1, #chans do
+        local ch = rc:get_channel(chans[i])
+        if ch then
+            if ch.clear_override then
+                ch:clear_override()
+            else
+                -- fallback used on some older firmwares
+                ch:set_override(0)
+            end
+        end
+    end
+
+    -- keep this as an extra cleanup (harmless if supported)
+    if rc and rc.clear_overrides then
+        rc:clear_overrides()
+    end
 end
 
 local function rc_limits(ch_in)
@@ -126,11 +143,20 @@ function update()
     end
 
     -- Safety: leaving Q modes stops immediately
-    if running and (not in_allowed_mode(mode)) then
+    if running and (trig_low or (not in_allowed_mode(mode))) then
         clear_overrides()
         running = false
-        gcs_msg("STOP (mode changed out of QSTABILIZE/QHOVER)")
+        if trig_low then
+            gcs_msg("STOP (CH9 LOW)")
+        else
+            gcs_msg("STOP (mode not correct)")
+        end
         return update, 50
+    end
+    
+    if (not running) and (not in_allowed_mode(mode)) then
+        clear_overrides()
+        return update, 80
     end
 
     -- Start: only if ARMED and CH9 is HIGH
@@ -158,15 +184,6 @@ function update()
     -- Run
     if running then
         local t_ms = now_ms - t0_ms
-
-        -- Abort only if CH9 is LOW continuously for ABORT_LOW_MS
-        if low_since_ms and ((now_ms - low_since_ms) >= ABORT_LOW_MS) then
-            clear_overrides()
-            running = false
-            gcs_msg("STOP")
-            return update, 50
-        end
-
         -- Done
         if t_ms >= T_STEP_MS then
             clear_overrides()
