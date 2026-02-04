@@ -163,7 +163,7 @@ function update()
         if low_since_ms and ((now_ms - low_since_ms) >= ABORT_LOW_MS) then
             clear_overrides()
             running = false
-            gcs_msg("STOP (released/abort)")
+            gcs_msg("STOP")
             return update, 50
         end
 
@@ -171,7 +171,7 @@ function update()
         if t_ms >= T_STEP_MS then
             clear_overrides()
             running = false
-            gcs_msg("DONE (sequence complete)")
+            gcs_msg("DONE")
             return update, 80
         end
 
@@ -189,5 +189,5 @@ function update()
     return update, 80
 end
 
-gcs_msg("Initialized (CH9=run, CH10=axis; QSTAB/QHOVER only)")
+gcs_msg("Step-Input init")
 return update()
