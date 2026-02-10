@@ -6,6 +6,13 @@
 local SCRIPT_NAME = "step_input"
 
 -- ========= User configuration =========
+local SEL_HIGH_MIN   = 1700
+
+local DIR_CH           = 6      
+local DIR_PLUS_US      = 1800   -- switch HIGH  -> +AMP_US
+local DIR_MINUS_US     = 1200   -- switch LOW   -> -AMP_US
+local DIR_DEFAULT_PLUS = true   -- if DIR_CH reads 0/invalid, default to +AMP_US
+
 local TRIG_CH        = 9
 local TRIG_HIGH_US   = 1800
 local TRIG_LOW_US    = 1200
@@ -22,7 +29,7 @@ local PITCH_IN       = 2
 local YAW_IN         = 4
 
 -- Step definition
-local T_STEP_MS      = 4000
+local T_STEP_MS      = 3000
 local AMP_US         = 1000
 
 -- IMPORTANT: set to 0 for a true step (no ramps)
@@ -55,6 +62,21 @@ end
 local function rcpwm(ch)
     local v = rc:get_pwm(ch)
     return tonumber(v) or 0
+end
+
+local function step_sign()
+    local v = rcpwm(DIR_CH)
+    if v == 0 then
+        return DIR_DEFAULT_PLUS and 1 or -1
+    end
+    if v >= DIR_PLUS_US then
+        return 1
+    elseif v <= DIR_MINUS_US then
+        return -1
+    else
+        -- switch is in-between thresholds; use default
+        return DIR_DEFAULT_PLUS and 1 or -1
+    end
 end
 
 local function in_allowed_mode(mode)
@@ -147,7 +169,7 @@ function update()
         clear_overrides()
         running = false
         if trig_low then
-            gcs_msg("STOP (CH9 LOW)")
+            gcs_msg("STOP (script deactivated)")
         else
             gcs_msg("STOP (mode not correct)")
         end
@@ -168,7 +190,8 @@ function update()
         baseline_pwm = (cur > 0) and cur or tr
 
         -- constant target for the whole step (clamped)
-        target_pwm = clamp(baseline_pwm + AMP_US, mn, mx)
+        local sgn = step_sign()  -- +1 or -1 from DIR_CH
+        target_pwm = clamp(baseline_pwm + sgn * AMP_US, mn, mx)
 
         t0_ms = now_ms
         running = true
