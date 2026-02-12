@@ -1,7 +1,7 @@
--- NewtonOneV1
+-- NewtonOneV1 - Series 3
 -- Updated 21 Jan 2025
 -- Author: Hussein Sleiman
--- Custom Motor Matrix Lua
+-- Custom Motor Matrix Lua for H-Frame with 8 motors
 
 -- MAVLink severity levels for GCS messages
 local MAV_SEVERITY_EMERGENCY = 0
@@ -81,6 +81,9 @@ MotorsMatrix:add_motor_raw(M1, NEWTON_MOT_01_X, NEWTON_MOT_01_Y, AP_MOTORS_MATRI
 MotorsMatrix:add_motor_raw(M2, NEWTON_MOT_02_X, NEWTON_MOT_02_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CW,  5)
 MotorsMatrix:add_motor_raw(M3, NEWTON_MOT_03_X, NEWTON_MOT_03_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 2)
 MotorsMatrix:add_motor_raw(M4, NEWTON_MOT_04_X, NEWTON_MOT_04_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 4)
+
+--
+
 MotorsMatrix:add_motor_raw(M5, NEWTON_MOT_05_X, NEWTON_MOT_05_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 8)
 MotorsMatrix:add_motor_raw(M6, NEWTON_MOT_06_X, NEWTON_MOT_06_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CCW, 6)
 MotorsMatrix:add_motor_raw(M7, NEWTON_MOT_07_X, NEWTON_MOT_07_Y, AP_MOTORS_MATRIX_YAW_FACTOR_CW,  7)
@@ -104,7 +107,7 @@ assert(
 )
 
 -- Set a custom frame identifier string for this motor layout
-motors:set_frame_string("NewtonOneV1_25012026")
+motors:set_frame_string("NewtonOneV3_25012026")
 
 -- High-visibility message so you can see the matrix was applied
-gcs:send_text(MAV_SEVERITY_EMERGENCY, "LUA: MotorMatrix initialized NewtonOne")
+gcs:send_text(MAV_SEVERITY_EMERGENCY, "LUA: MotorMatrix initialized NewtonOneV03")

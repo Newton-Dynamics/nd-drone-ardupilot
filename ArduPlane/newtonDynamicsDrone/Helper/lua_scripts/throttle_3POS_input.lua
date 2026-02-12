@@ -11,7 +11,7 @@ local SCRIPT_NAME          = "thr_rc_override_fbwa"
 local THR_IN               = 3
 
 -- Require this flight mode to allow override (ArduPlane: FBWA = 5)
-local MODE_REQUIRED        = 5         -- FBWA
+local MODE_REQUIRED        = 5         -- FBWA (6: FLY_BY_WIRE_B (FBWB))
 
 -- Run/stop trigger (CH9, 2-pos)
 local TRIG_CH              = 9
