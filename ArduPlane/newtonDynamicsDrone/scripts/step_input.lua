@@ -1,7 +1,23 @@
--- 1-step RC input override for QuadPlane (QHOVER only)
--- CH9 HIGH  -> run one 1-step on selected axis (CH10 3-pos)
--- CH9 LOW   -> abort + clear overrides (debounced)
--- CH10 3-pos: LOW=ROLL, MID=PITCH, HIGH=YAW
+-- Author: Hussein Sleiman
+-- Release: February 19, 2026
+
+-- ====================================Description ===================================================
+-- This script is to automate a maneuver during flight by overriding the pilot stick input. 
+-- This maneuver have a "Step" ramp up/down shape in VTOL and can only be activated in QHover.
+
+-- To activate the script:
+-- CH5 switch UP   --> Activate script
+-- CH5 switch DOWN --> Deactivate script
+
+-- To select roll, pitch, or yaw:
+-- CH6 switch --> UP  = ROLL 
+--                MID = PITCH 
+--                LOW = YAW
+
+-- To select direction:
+-- CH9  switch --> UP   = roll to right, pitch backward, yaw right
+--             --> DOWN = roll to left, pitch forward, yaw left
+-- ===================================================================================================
 
 local SCRIPT_NAME = "step_input"
 
@@ -9,9 +25,9 @@ local SCRIPT_NAME = "step_input"
 local SEL_HIGH_MIN   = 1700
 
 local DIR_CH           = 6      
-local DIR_PLUS_US      = 1800   -- switch HIGH  -> +AMP_US
-local DIR_MINUS_US     = 1200   -- switch LOW   -> -AMP_US
-local DIR_DEFAULT_PLUS = true   -- if DIR_CH reads 0/invalid, default to +AMP_US
+local DIR_PLUS_US      = 1800
+local DIR_MINUS_US     = 1200   
+local DIR_DEFAULT_PLUS = true   
 
 local TRIG_CH        = 9
 local TRIG_HIGH_US   = 1800
@@ -38,7 +54,7 @@ local FADE_IN_MS     = 0
 local UPDATE_MS      = 20
 
 --local MODE_QSTABILIZE = 17 and QHOVER = 18
-local ALLOWED_MODE     = 18
+local ALLOWED_MODE     = 19
 
 -- Debounce / arm logic (prevents multiple pulses)
 local REARM_LOW_MS   = 300   -- must be LOW this long before a new start is allowed
