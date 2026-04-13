@@ -256,48 +256,64 @@ void lua_scripts::load_all_scripts_in_dir(lua_State *L, const char *dirname) {
     if (dirname == nullptr) {
         return;
     }
+
     auto *d = AP::FS().opendir(dirname);
     if (d == nullptr) {
         // this disk_space check will return 0 if we don't have a real
-        // filesystem (ie. no Posix or FatFs).  Do not warn in this case.
+        // filesystem (ie. no Posix or FatFs). Do not warn in this case.
         if (AP::FS().disk_space(dirname) != 0) {
             GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "Lua: open directory (%s) failed", dirname);
         }
         return;
     }
 
-    // load anything that ends in .lua
-    for (struct dirent *de=AP::FS().readdir(d); de; de=AP::FS().readdir(d)) {
-        uint8_t length = strlen(de->d_name);
-        if (length < 5) {
-            // not long enough
+    for (struct dirent *de = AP::FS().readdir(d); de; de = AP::FS().readdir(d)) {
+        const char *name = de->d_name;
+        if (name == nullptr) {
             continue;
         }
 
-        if ((de->d_name[0] == '.') || strncmp(&de->d_name[length-4], ".lua", 4)) {
-            // starts with . (hidden file) or doesn't end in .lua
+        // skip hidden entries and . / ..
+        if (name[0] == '.') {
             continue;
         }
 
-        // FIXME: because chunk name fetching is not working we are allocating and storing an extra string we shouldn't need to
-        size_t size = strlen(dirname) + strlen(de->d_name) + 2;
-        char * filename = (char *) _heap.allocate(size);
-        if (filename == nullptr) {
+        size_t size = strlen(dirname) + strlen(name) + 2;
+        char *child = (char *)_heap.allocate(size);
+        if (child == nullptr) {
             continue;
         }
-        snprintf(filename, size, "%s/%s", dirname, de->d_name);
 
-        // we have something that looks like a lua file, attempt to load it
-        script_info * script = load_script(L, filename);
+        snprintf(child, size, "%s/%s", dirname, name);
+
+        // recurse into subdirectories
+        if (auto *subdir = AP::FS().opendir(child)) {
+            AP::FS().closedir(subdir);
+            load_all_scripts_in_dir(L, child);
+            _heap.deallocate(child);
+            continue;
+        }
+
+        uint8_t length = strlen(name);
+        if ((length < 5) || (strncmp(&name[length - 4], ".lua", 4) != 0)) {
+            _heap.deallocate(child);
+            continue;
+        }
+
+        // In your branch, load_script() takes a filename and returns script_info*
+        script_info *script = load_script(L, child);
+
         if (script == nullptr) {
-            _heap.deallocate(filename);
+            // load_script() failed, so this path buffer is still ours to free
+            _heap.deallocate(child);
             continue;
         }
+
         reschedule_script(script);
 
 #if HAL_LOGGER_FILE_CONTENTS_ENABLED
         if (!option_is_set(AP_Scripting::DebugOption::SUPPRESS_SCRIPT_LOG)) {
-            AP::logger().log_file_content(filename);
+            AP::logger().log_file_content(script->name);
         }
 #endif
     }
