@@ -6,11 +6,11 @@
 -- 1) One-time ESC status print after boot
 -- 2) Blocks arming if any monitored ESC is not operational
 -- 3) In flight, warns "Motor loss" if any monitored ESC RPM stays below threshold
+-- 4) No status is published after the initial report; it only prints on state changes (e.g. motor loss during flight or before arming).
 --
 -- Requirements:
 -- - Motor servo output are mapped from Servo 1 to Servo 8
 -- - This script must KEEP RUNNING for the motor-loss warning.
--- - No status is published after the initial report; it only prints on state changes (e.g. motor loss during flight or before arming).
 -- ====================================================================================================================================
 
 local SCRIPT_NAME = "motor_status"
