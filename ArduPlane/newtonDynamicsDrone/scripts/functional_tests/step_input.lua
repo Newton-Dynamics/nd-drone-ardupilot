@@ -53,9 +53,10 @@ local FADE_IN_MS     = 0
 
 local UPDATE_MS      = 20
 
---local MODE_QSTABILIZE = 17 and QHOVER = 18
+--local modes allowed to use the script
 local MODE_QSTABILIZE = 17
 local MODE_QHOVER = 18
+local MODE_QLOITER = 19
 
 -- Debounce / arm logic (prevents multiple pulses)
 local REARM_LOW_MS   = 300   -- must be LOW this long before a new start is allowed
@@ -97,7 +98,7 @@ local function step_sign()
 end
 
 local function in_allowed_mode(mode)
-    return (mode == MODE_QSTABILIZE) or (mode == MODE_QHOVER)
+    return (mode == MODE_QSTABILIZE) or (mode == MODE_QHOVER) or (mode == MODE_QLOITER)
 end
 
 local function clear_overrides()
