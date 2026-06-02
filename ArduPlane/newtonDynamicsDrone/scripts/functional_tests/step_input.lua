@@ -45,7 +45,7 @@ local PITCH_IN       = 2
 local YAW_IN         = 4
 
 -- Step definition
-local T_STEP_MS      = 1000
+local T_STEP_MS      = 9000
 local AMP_US         = 1000
 
 -- IMPORTANT: set to 0 for a true step (no ramps)
