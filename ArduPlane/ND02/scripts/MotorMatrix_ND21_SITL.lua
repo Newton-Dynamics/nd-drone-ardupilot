@@ -1,8 +1,13 @@
--- NewtonTwo - Series 1
--- Updated 11 Feb 2026
 -- Author: Hussein Sleiman
--- Custom Motor Matrix Lua for H-Frame with 8 motors
 
+-- Drone Version: NewtonTwo - Series 1 (ND21)
+-- Published in 11 Feb 2026
+-- Updated in 22 June 2026
+-- Validated with respect to the measurements taken from blender model. For reference please check the repo: nd-drone-sitl-physical-models/newtonTwo010-model/images
+
+-- Description --
+-- Custom Motor Matrix Lua for H-Frame with 8 motors
+----------------------------------------------------
 -- MAVLink severity levels for GCS messages
 local MAV_SEVERITY_EMERGENCY = 0
 local MAV_SEVERITY_NOTICE    = 5
@@ -15,25 +20,25 @@ local AP_MOTORS_MATRIX_YAW_FACTOR_CCW =  1
 ----------------------------------------------------------------------
 -- MOTOR MATRIX inputs to iforce2d.net
 -- https://www.iforce2d.net/mixercalc/
--- 1 3 396
--- 3 8 594
--- 8 4 664
--- 5 7 369
--- 7 6 594
--- 6 2 664
+-- 1 3 640
+-- 3 8 378
+-- 8 4 708
+-- 5 7 640
+-- 7 6 378
+-- 6 2 708
 -- 1 3 v
 -- 3 8 v
 -- 8 4 v
 -- 5 7 v
 -- 7 6 v
 -- 6 2 v
--- 5 1 806
--- 7 3 806
--- 6 8 806
--- 2 4 806
+-- 5 1 1325
+-- 7 3 1325
+-- 6 8 1325
+-- 2 4 1325
 -- 5 1 h
 -- 7 3 h
--- 6 8 h
+--6 8 h
 -- 2 4 h
 ----------------------------------------------------------------------
 
@@ -48,29 +53,29 @@ local M7 = 6
 local M8 = 7
 
 -- Motor geometry (normalised roll/pitch factors)
-local NEWTON_MOT_01_X = -0.452
-local NEWTON_MOT_01_Y =  0.846
+local NEWTON_MOT_01_X = -0.753
+local NEWTON_MOT_01_Y =  0.961
 
-local NEWTON_MOT_02_X =  0.452
-local NEWTON_MOT_02_Y = -0.999
+local NEWTON_MOT_02_X =  0.753
+local NEWTON_MOT_02_Y = -1.000
 
-local NEWTON_MOT_03_X = -0.452
-local NEWTON_MOT_03_Y =  0.410
+local NEWTON_MOT_03_X = -0.753
+local NEWTON_MOT_03_Y =  0.234
 
-local NEWTON_MOT_04_X = -0.452
+local NEWTON_MOT_04_X = -0.753
 local NEWTON_MOT_04_Y = -1.000
 
-local NEWTON_MOT_05_X =  0.452
-local NEWTON_MOT_05_Y =  0.838
+local NEWTON_MOT_05_X =  0.753
+local NEWTON_MOT_05_Y =  0.961
 
-local NEWTON_MOT_06_X =  0.452
-local NEWTON_MOT_06_Y = -0.254
+local NEWTON_MOT_06_X =  0.753
+local NEWTON_MOT_06_Y = -0.195
 
-local NEWTON_MOT_07_X =  0.452
-local NEWTON_MOT_07_Y =  0.415
+local NEWTON_MOT_07_X =  0.753
+local NEWTON_MOT_07_Y =  0.234
 
-local NEWTON_MOT_08_X = -0.452
-local NEWTON_MOT_08_Y = -0.255
+local NEWTON_MOT_08_X = -0.753
+local NEWTON_MOT_08_Y = -0.195
 
 ----------------------------------------------------------------------
 -- Motor matrix initialisation at script load
