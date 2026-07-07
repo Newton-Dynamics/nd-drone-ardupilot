@@ -1,0 +1,12 @@
+FENCE_ENABLE,1 # Activate fence functionality
+FENCE_TYPE,5 # All types are considered
+FENCE_ACTION,0 # The action taken when fence is breached Bit 0 is Report Only therefore no action is taken
+FENCE_ALT_MAX,50 # Maximum altitude allowed before FENCE_ACTION is triggered
+FENCE_ALT_MIN,-10 # Minimum altitude allowed before FENCE_ACTION is triggered
+FENCE_RADIUS,100 # circular fence radius which when breached will cause an RLT
+FENCE_MARGIN,5 # 5 meter distance the autopilot shall maintain from the fence to avoid a braech
+FENCE_TOTAL,10 # Number of polygon points saved in eeprom (please do not update manually)
+FENCE_RET_RALLY,0 # Disabled this param is to allow the drone to return to a point or rally point after a fence breach
+FENCE_RET_ALT,10 # altitude the vehicle will transit to when a fence breach occurs
+FENCE_AUTOENABLE,0 # Disabled
+FENCE_OPTIONS,2 # Disable mode change following fence action until fence breach is cleared and Allow union of inclusion areas
