@@ -1,0 +1,269 @@
+-- ==================================== Description ================================================
+-- This script automatically applies a step input to the yaw command during flight.
+-- The maneuver can only be activated while the aircraft is in QHOVER.
+--
+-- Trigger:
+-- RC channel 9 LOW  --> Start yaw step
+-- RC channel 9 HIGH --> Deactivate/abort script
+--
+-- Safety behavior:
+-- 1. The step can only start in QHOVER.
+-- 2. Leaving QHOVER immediately clears the RC override.
+-- 3. Moving the trigger switch to the OFF position immediately clears the RC override.
+-- 4. The trigger must remain OFF for REARM_LOW_MS before another step can start.
+-- ================================================================================================
+
+local SCRIPT_NAME = "yaw_step_input"
+
+-- ================= User configuration =================
+
+-- Trigger channel
+local TRIG_CH      = 9
+local TRIG_HIGH_US = 1850 -- Script OFF / abort position
+local TRIG_LOW_US  = 1100 -- Script ON / start position
+
+-- RC input channel
+-- Typical ArduPlane AETR mapping:
+-- Roll=1, Pitch=2, Throttle=3, Yaw=4
+local YAW_IN = 4
+
+-- Step definition
+local T_STEP_MS = 2000
+
+-- Signed yaw-step amplitude:
+-- Positive value = positive yaw direction
+-- Negative value = negative yaw direction
+local AMP_US = 1000
+
+-- Set to zero for a true step input.
+-- Set above zero to gradually increase the command.
+local FADE_IN_MS = 0
+
+-- Script update period while running
+local UPDATE_MS = 20
+
+-- ArduPlane flight mode number:
+-- QSTABILIZE = 17
+-- QHOVER     = 18
+local ALLOWED_MODE = 18
+
+-- Trigger debounce/rearm logic
+local REARM_LOW_MS = 300
+
+-- ======================================================
+
+local SEV_INFO = 6
+
+local function gcs_msg(txt)
+    gcs:send_text(
+        SEV_INFO,
+        string.format("%s: %s", SCRIPT_NAME, txt)
+    )
+end
+
+local function clamp(x, lo, hi)
+    if x < lo then
+        return lo
+    elseif x > hi then
+        return hi
+    else
+        return x
+    end
+end
+
+local function pget(name, default)
+    local value = param:get(name)
+    return tonumber(value) or default
+end
+
+local function rcpwm(channel_number)
+    local value = rc:get_pwm(channel_number)
+    return tonumber(value) or 0
+end
+
+local function in_allowed_mode(mode)
+    return mode == ALLOWED_MODE
+end
+
+local function clear_overrides()
+    -- Explicitly clear the yaw-channel override.
+    local yaw_channel = rc:get_channel(YAW_IN)
+
+    if yaw_channel then
+        if yaw_channel.clear_override then
+            yaw_channel:clear_override()
+        else
+            -- Fallback for older firmware implementations.
+            yaw_channel:set_override(0)
+        end
+    end
+
+    -- Additional cleanup if supported by the firmware.
+    if rc and rc.clear_overrides then
+        rc:clear_overrides()
+    end
+end
+
+local function rc_limits(channel_number)
+    local minimum = pget(
+        string.format("RC%d_MIN", channel_number),
+        1000
+    )
+
+    local trim = pget(
+        string.format("RC%d_TRIM", channel_number),
+        1500
+    )
+
+    local maximum = pget(
+        string.format("RC%d_MAX", channel_number),
+        2000
+    )
+
+    return minimum, trim, maximum
+end
+
+local function set_rc_override(channel_number, pwm)
+    local channel = rc:get_channel(channel_number)
+
+    if channel then
+        channel:set_override(
+            math.floor((tonumber(pwm) or 0) + 0.5)
+        )
+    end
+end
+
+-- ================= Script state =================
+
+local running      = false
+local armed        = false
+local off_since_ms = nil
+
+local t0_ms        = 0
+local baseline_pwm = 1500
+local target_pwm   = 1500
+
+-- =================================================
+
+function update()
+    local now_ms = millis()
+    local mode   = vehicle:get_mode() or -1
+    local trig   = rcpwm(TRIG_CH)
+
+    -- Preserve the original switch behavior:
+    -- High PWM = OFF/deactivate
+    -- Low PWM  = ON/start
+    local trigger_off = trig >= TRIG_HIGH_US
+    local trigger_on  = trig <= TRIG_LOW_US
+
+    -- Measure how long the trigger has remained OFF.
+    if trigger_off then
+        if not off_since_ms then
+            off_since_ms = now_ms
+        end
+    else
+        off_since_ms = nil
+    end
+
+    -- Rearm only after the trigger has remained OFF for the
+    -- configured debounce period.
+    if not running then
+        if off_since_ms and
+           ((now_ms - off_since_ms) >= REARM_LOW_MS) then
+            armed = true
+        end
+    end
+
+    -- Safety shutdown:
+    -- 1. Trigger moved to OFF.
+    -- 2. Flight mode changed away from QHOVER.
+    if running and
+       (trigger_off or not in_allowed_mode(mode)) then
+
+        clear_overrides()
+        running = false
+
+        if trigger_off then
+            gcs_msg("STOP (script deactivated)")
+        else
+            gcs_msg("STOP (mode is not QHOVER)")
+        end
+
+        return update, 50
+    end
+
+    -- Do not permit any override outside QHOVER.
+    if not running and not in_allowed_mode(mode) then
+        clear_overrides()
+        return update, 80
+    end
+
+    -- Start a new yaw step.
+    if not running and
+       armed and
+       trigger_on and
+       in_allowed_mode(mode) then
+
+        local minimum, trim, maximum = rc_limits(YAW_IN)
+        local current_pwm = rcpwm(YAW_IN)
+
+        -- Use the current pilot yaw input as the baseline.
+        -- Fall back to RC yaw trim if no valid input is available.
+        baseline_pwm = current_pwm > 0 and current_pwm or trim
+
+        -- AMP_US determines both amplitude and fixed direction.
+        target_pwm = clamp(
+            baseline_pwm + AMP_US,
+            minimum,
+            maximum
+        )
+
+        t0_ms  = now_ms
+        running = true
+        armed   = false
+
+        gcs_msg(string.format(
+            "START yaw step (RC%d baseline=%d target=%d)",
+            YAW_IN,
+            baseline_pwm,
+            target_pwm
+        ))
+
+        return update, UPDATE_MS
+    end
+
+    -- Apply the yaw step.
+    if running then
+        local elapsed_ms = now_ms - t0_ms
+
+        -- Finish when the configured step time expires.
+        if elapsed_ms >= T_STEP_MS then
+            clear_overrides()
+            running = false
+            gcs_msg("DONE")
+
+            return update, 80
+        end
+
+        local output_pwm = target_pwm
+
+        -- Optional gradual entry into the yaw step.
+        if FADE_IN_MS > 0 and elapsed_ms < FADE_IN_MS then
+            local fade_ratio = elapsed_ms / FADE_IN_MS
+
+            output_pwm =
+                baseline_pwm +
+                (target_pwm - baseline_pwm) * fade_ratio
+        end
+
+        set_rc_override(YAW_IN, output_pwm)
+
+        return update, UPDATE_MS
+    end
+
+    return update, 80
+end
+
+gcs_msg("Yaw Step-Input initialized")
+
+return update()

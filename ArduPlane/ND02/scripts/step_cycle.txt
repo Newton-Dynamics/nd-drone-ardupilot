@@ -1,0 +1,358 @@
+-- Author: Hussein Sleiman
+-- Release: July 17, 2026
+
+-- ================================================================================================
+-- Repeating roll/pitch ramp maneuver for ArduPlane QuadPlane
+--
+-- Waveform on the selected RC input:
+--   trim -> +amplitude -> trim -> short trim dwell
+--        -> -amplitude -> trim -> short trim dwell -> repeat
+--
+-- The maneuver is allowed only in QHOVER (mode 18).
+-- The selected axis is locked when the maneuver starts.
+--
+-- Trigger, using the same PWM behavior as the original script:
+--   CH5 >= TRIG_SAFE_US  : deactivate / abort / rearm
+--   CH5 <= TRIG_START_US : start after the safe position has been held long enough
+--
+-- Axis selector:
+--   CH6 low  : ROLL
+--   CH6 high : PITCH
+--   CH6 middle/invalid: maneuver will not start
+--
+-- IMPORTANT:
+-- Physical switch UP/DOWN depends on transmitter channel reversal and calibration.
+-- Confirm the actual PWM values in Mission Planner's Radio Calibration page.
+-- ================================================================================================
+local SCRIPT_NAME = "step_cycle"
+
+-- ================================= User configuration ===========================================
+
+-- Trigger switch
+local TRIG_CH          = 9
+local TRIG_SAFE_US     = 1850
+local TRIG_START_US    = 1100
+
+-- Roll/pitch selector switch
+local SEL_CH            = 11
+local SEL_ROLL_MAX_US   = 1300
+local SEL_PITCH_MIN_US  = 1700
+
+-- RC input channels: typical AETR Plane mapping - RCMAP Params
+local ROLL_IN           = 1
+local PITCH_IN          = 2
+
+-- Maneuver definition
+local RUN_TIME_MS       = 10000  -- total maneuver duration, including the final trim interval
+local AMP_US            = 2000   -- peak displacement from RCx_TRIM; clamped to RCx_MIN/RCx_MAX
+local RAMP_MS           = 400    -- time for each trim-to-peak or peak-to-trim ramp
+local TRIM_HOLD_MS      = 500    -- level-command dwell between positive and negative ramps
+local FINAL_TRIM_MS     = 100    -- trim command before releasing the override at the end
+
+local UPDATE_MS         = 50     -- 50 Hz script update
+
+-- QHOVER = Plane mode 18
+local ALLOWED_MODE      = 18
+
+-- Trigger rearm logic
+local REARM_SAFE_MS     = 300
+
+-- Reject missing or implausible RC PWM readings
+local RC_VALID_MIN_US   = 800
+local RC_VALID_MAX_US   = 2200
+
+-- ================================================================================================
+
+local SEV_INFO = 6
+
+local function gcs_msg(txt)
+    gcs:send_text(SEV_INFO, string.format("%s: %s", SCRIPT_NAME, txt))
+end
+
+local function clamp(x, lo, hi)
+    if x < lo then
+        return lo
+    elseif x > hi then
+        return hi
+    end
+    return x
+end
+
+local function lerp(a, b, ratio)
+    return a + (b - a) * clamp(ratio, 0.0, 1.0)
+end
+
+local function pget(name, default)
+    local value = param:get(name)
+    return tonumber(value) or default
+end
+
+local function rcpwm(channel_number)
+    local value = rc:get_pwm(channel_number)
+    return tonumber(value) or 0
+end
+
+local function valid_rc_pwm(pwm)
+    return pwm >= RC_VALID_MIN_US and pwm <= RC_VALID_MAX_US
+end
+
+local function in_allowed_mode(mode)
+    return mode == ALLOWED_MODE
+end
+
+local function clear_overrides()
+    -- Clear only the RC inputs this script can override.
+    local channels = {ROLL_IN, PITCH_IN}
+
+    for i = 1, #channels do
+        local channel = rc:get_channel(channels[i])
+        if channel then
+            if channel.clear_override then
+                channel:clear_override()
+            else
+                -- Compatibility fallback for firmware versions without clear_override().
+                channel:set_override(0)
+            end
+        end
+    end
+
+    -- Retained from the original script as an additional cleanup mechanism.
+    if rc and rc.clear_overrides then
+        rc:clear_overrides()
+    end
+end
+
+local function rc_limits(channel_number)
+    local minimum = pget(string.format("RC%d_MIN", channel_number), 1000)
+    local trim    = pget(string.format("RC%d_TRIM", channel_number), 1500)
+    local maximum = pget(string.format("RC%d_MAX", channel_number), 2000)
+    return minimum, trim, maximum
+end
+
+local function select_axis()
+    local selector_pwm = rcpwm(SEL_CH)
+
+    if not valid_rc_pwm(selector_pwm) then
+        return nil, "INVALID"
+    end
+
+    if selector_pwm <= SEL_ROLL_MAX_US then
+        return ROLL_IN, "ROLL"
+    elseif selector_pwm >= SEL_PITCH_MIN_US then
+        return PITCH_IN, "PITCH"
+    end
+
+    -- Do not silently choose an axis while the switch is in the middle region.
+    return nil, "INVALID"
+end
+
+local function set_rc_override(channel_number, pwm)
+    local channel = rc:get_channel(channel_number)
+    if channel then
+        channel:set_override(math.floor((tonumber(pwm) or 0) + 0.5))
+    end
+end
+
+-- One complete positive/negative cycle:
+--   1) trim -> positive peak
+--   2) positive peak -> trim
+--   3) trim dwell
+--   4) trim -> negative peak
+--   5) negative peak -> trim
+--   6) trim dwell
+local CYCLE_MS = (4 * RAMP_MS) + (2 * TRIM_HOLD_MS)
+
+local function waveform_pwm(cycle_time_ms, trim_pwm, positive_pwm, negative_pwm)
+    local p1 = RAMP_MS
+    local p2 = p1 + RAMP_MS
+    local p3 = p2 + TRIM_HOLD_MS
+    local p4 = p3 + RAMP_MS
+    local p5 = p4 + RAMP_MS
+    local p6 = p5 + TRIM_HOLD_MS
+
+    if cycle_time_ms < p1 then
+        -- Trim to positive peak
+        return lerp(trim_pwm, positive_pwm, cycle_time_ms / RAMP_MS)
+
+    elseif cycle_time_ms < p2 then
+        -- Positive peak back to trim
+        return lerp(positive_pwm, trim_pwm, (cycle_time_ms - p1) / RAMP_MS)
+
+    elseif cycle_time_ms < p3 then
+        -- Short level-command dwell
+        return trim_pwm
+
+    elseif cycle_time_ms < p4 then
+        -- Trim to negative peak
+        return lerp(trim_pwm, negative_pwm, (cycle_time_ms - p3) / RAMP_MS)
+
+    elseif cycle_time_ms < p5 then
+        -- Negative peak back to trim
+        return lerp(negative_pwm, trim_pwm, (cycle_time_ms - p4) / RAMP_MS)
+
+    elseif cycle_time_ms < p6 then
+        -- Short level-command dwell
+        return trim_pwm
+    end
+
+    return trim_pwm
+end
+
+-- ========================================== State ================================================
+
+local running        = false
+local ready_to_start = false
+local safe_since_ms  = nil
+
+local start_ms       = 0
+local axis_ch        = nil
+local axis_label     = ""
+local trim_pwm       = 1500
+local positive_pwm   = 1500
+local negative_pwm   = 1500
+
+local function stop_maneuver(message)
+    clear_overrides()
+    running = false
+    ready_to_start = false
+    axis_ch = nil
+    gcs_msg(message)
+end
+
+function update()
+    local now_ms = millis()
+    local mode   = vehicle:get_mode() or -1
+    local trig   = rcpwm(TRIG_CH)
+
+    local trigger_valid = valid_rc_pwm(trig)
+    local trigger_safe  = trigger_valid and trig >= TRIG_SAFE_US
+    local trigger_start = trigger_valid and trig <= TRIG_START_US
+
+    -- Rearm only after the trigger remains in its safe/deactivated position.
+    if trigger_safe then
+        if not safe_since_ms then
+            safe_since_ms = now_ms
+        end
+    else
+        safe_since_ms = nil
+    end
+
+    if not running then
+        if safe_since_ms and ((now_ms - safe_since_ms):toint() >= REARM_SAFE_MS) then
+            ready_to_start = true
+        end
+    end
+
+    -- Running-state abort conditions.
+    if running then
+        if not in_allowed_mode(mode) then
+            stop_maneuver("STOP (mode changed; QHOVER required)")
+            return update, 50
+        end
+
+        if not trigger_valid then
+            stop_maneuver("STOP (invalid trigger PWM)")
+            return update, 50
+        end
+
+        if trigger_safe then
+            stop_maneuver("STOP (script deactivated)")
+            return update, 50
+        end
+    end
+
+    -- Outside QHOVER, make sure no override remains and do not permit a start.
+    if not running and not in_allowed_mode(mode) then
+        clear_overrides()
+        return update, 80
+    end
+
+    -- An invalid trigger cannot start the maneuver and cancels readiness.
+    if not running and not trigger_valid then
+        clear_overrides()
+        ready_to_start = false
+        return update, 80
+    end
+
+    -- Start only after the deliberate safe-position rearm sequence.
+    if not running and ready_to_start and trigger_start and in_allowed_mode(mode) then
+        axis_ch, axis_label = select_axis()
+
+        if not axis_ch then
+            ready_to_start = false
+            clear_overrides()
+            gcs_msg("START BLOCKED (CH6 must select ROLL-low or PITCH-high)")
+            return update, 80
+        end
+
+        local minimum, trim, maximum = rc_limits(axis_ch)
+        trim_pwm = trim
+
+        positive_pwm = clamp(trim_pwm + AMP_US, minimum, maximum)
+        negative_pwm = clamp(trim_pwm - AMP_US, minimum, maximum)
+
+        start_ms = now_ms
+        running = true
+        ready_to_start = false
+
+        gcs_msg(string.format(
+            "START %s: trim=%d positive=%d negative=%d duration=%.1fs cycle=%.1fs",
+            axis_label,
+            trim_pwm,
+            positive_pwm,
+            negative_pwm,
+            RUN_TIME_MS / 1000.0,
+            CYCLE_MS / 1000.0
+        ))
+
+        return update, UPDATE_MS
+    end
+
+    if running then
+        local elapsed_ms = (now_ms - start_ms):toint()
+
+        -- End after the configured total duration.
+        if elapsed_ms >= RUN_TIME_MS then
+            clear_overrides()
+            running = false
+            axis_ch = nil
+            gcs_msg("DONE")
+            return update, 80
+        end
+
+        local output_pwm
+        local final_trim_start_ms = math.max(0, RUN_TIME_MS - FINAL_TRIM_MS)
+
+        if elapsed_ms >= final_trim_start_ms then
+            -- Finish at trim before releasing the override.
+            output_pwm = trim_pwm
+        else
+            local cycle_time_ms = elapsed_ms % CYCLE_MS
+            output_pwm = waveform_pwm(cycle_time_ms, trim_pwm, positive_pwm, negative_pwm)
+        end
+
+        set_rc_override(axis_ch, output_pwm)
+        return update, UPDATE_MS
+    end
+
+    return update, 80
+end
+
+if RAMP_MS <= 0 then
+    gcs_msg("ERROR: RAMP_MS must be greater than zero")
+    return
+end
+
+if CYCLE_MS <= 0 then
+    gcs_msg("ERROR: maneuver timing is invalid")
+    return
+end
+
+gcs_msg(string.format(
+    "Init: ROLL/PITCH ramp cycle, duration=%.1fs amplitude=%dus cycle=%.1fs",
+    RUN_TIME_MS / 1000.0,
+    AMP_US,
+    CYCLE_MS / 1000.0
+))
+
+return update()
