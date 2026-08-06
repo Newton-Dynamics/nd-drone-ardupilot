@@ -1,14 +1,3 @@
--- Dual GPS loss failsafe for ArduPlane 4.6.3 QuadPlane
--- SITL deployment label. GPS detection is backend-independent.
---
--- Intended action:
---   QLOITER, or AUTO while currently in VTOL operation
---   + armed + likely flying
---   + GPS1 and GPS2 both unusable for ALL_GPS_LOSS_DEBOUNCE_MS
---       => switch to QHOVER
---
--- Install only one copy of this script.
-
 local SCRIPT_NAME = "GPSFS"
 local DEPLOYMENT_NAME = "SITL-uBlox"
 
