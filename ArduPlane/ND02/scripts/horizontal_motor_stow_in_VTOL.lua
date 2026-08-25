@@ -30,7 +30,7 @@ local SCRIPT_NAME = "FWD motor stow"
 
 -- ========================= Configuration =========================
 local THROTTLE_FUNCTION          = 70       -- SERVOx_FUNCTION = 70 (Throttle)
-local EXPECTED_SERVO_OUTPUT      = 3       -- horizontal motor must be SERVO13
+local EXPECTED_SERVO_OUTPUT      = 13       -- horizontal motor must be SERVO13
 
 local ALT_LIMIT_M                = 4.0
 local MAX_ALLOWED_N_E_VEL        = 0.2
